@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+regex = "==2023.12.25"
+openai = "==0.28.0"
+replicate = "==0.23.1"
+argparse = "*"
+transformers = "*"
+black = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
