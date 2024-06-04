@@ -68,26 +68,22 @@ class PatientAgent:
         # symptoms that patient presents
         self.symptoms = ""
         # conversation history between doctor and patient
-        self.agent_hist = ""
-        # language model backend for patient agent
         self.backend = backend_str
         # sample initial question from dataset
         self.scenario = scenario
         self.reset()
         self.pipe = None
 
-    def inference_patient(self, question) -> str:
+    def inference_patient(self, doctor_dialogue) -> str:
         answer = str()
         if self.backend == "gpt4":
             messages = [
                 {"role": "system", "content": self.system_prompt()},
                 {
                     "role": "user",
-                    "content": "\nHere is a history of your dialogue: "
-                    + self.agent_hist
-                    + "\n Here was the doctor response: "
-                    + question
-                    + "Now please continue with your next response\nPatient: ",
+                    "content": "\nHere is the dialogue history:\n"
+                    + doctor_dialogue
+                    + "\nPlease provide the patient's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -101,11 +97,9 @@ class PatientAgent:
                 {"role": "system", "content": self.system_prompt()},
                 {
                     "role": "user",
-                    "content": "\nHere is a history of your dialogue: "
-                    + self.agent_hist
-                    + "\n Here was the doctor response: "
-                    + question
-                    + "Now please continue with your next response\nPatient: ",
+                    "content": "\nHere is the dialogue history:\n"
+                    + doctor_dialogue
+                    + "\nPlease provide the patient's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -119,11 +113,9 @@ class PatientAgent:
                 {"role": "system", "content": self.system_prompt()},
                 {
                     "role": "user",
-                    "content": "\nHere is a history of your dialogue: "
-                    + self.agent_hist
-                    + "\n Here was the doctor response: "
-                    + question
-                    + "Now please continue with your next response\nPatient: ",
+                    "content": "\nHere is the dialogue history:\n"
+                    + doctor_dialogue
+                    + "\nPlease provide the patient's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -134,11 +126,9 @@ class PatientAgent:
             answer = response["choices"][0]["message"]["content"]
         elif self.backend == "mixtral-8x7b":
             prompt = (
-                "\nHere is a history of your dialogue: "
-                + self.agent_hist
-                + "\n Here was the doctor response: "
-                + question
-                + "Now please continue with your next response\nPatient: "
+                "\nHere is the dialogue history:\n"
+                + doctor_dialogue
+                + "\nPlease provide the patient's response."
             )
             output = replicate.run(
                 mixtral_url,
@@ -152,11 +142,9 @@ class PatientAgent:
         elif "HF_" in self.backend:
             input_text = (
                 self.system_prompt()
-                + "\nHere is a history of your dialogue: "
-                + self.agent_hist
-                + "\n Here was the doctor response: "
-                + question
-                + "Now please continue with your next response\nPatient: "
+                + "\nHere is the dialogue history:\n"
+                + doctor_dialogue
+                + "\nPlease provide the patient's response."
             )
             if self.pipe is None:
                 self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
@@ -164,8 +152,54 @@ class PatientAgent:
         else:
             raise Exception("No model by the name {}".format(self.backend))
 
-        self.agent_hist += question + "\n\n" + answer + "\n\n"
         return answer
+    
+    def start_conversation(self) -> str:
+        system_prompt = self.first_prompt()
+        messages = [{"role": "system", "content": system_prompt}]
+
+        answer = str()
+        if self.backend == "gpt4":
+            response = openai.ChatCompletion.create(
+                model="gpt-4-turbo-preview",
+                messages=messages,
+                temperature=0.05,
+            )
+            answer = response["choices"][0]["message"]["content"]
+        elif self.backend == "gpt3.5":
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.05,
+            )
+            answer = response["choices"][0]["message"]["content"]
+        elif self.backend == "gpt4o":
+            response = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=messages,
+                temperature=0.05,
+            )
+            answer = response["choices"][0]["message"]["content"]
+        elif self.backend == "mixtral-8x7b":
+            prompt = system_prompt
+            output = replicate.run(
+                mixtral_url,
+                input={
+                    "prompt": prompt,
+                    "max_new_tokens": 75,
+                },
+            )
+            answer = "".join(output)
+        elif "HF_" in self.backend:
+            input_text = system_prompt
+            if self.pipe is None:
+                self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
+            answer = inference_huggingface(input_text, self.pipe)
+        else:
+            raise Exception("No model by the name {}".format(self.backend))
+
+        return answer
+    
 
     def system_prompt(self) -> str:
         base = "You are a patient with the following background:\n{}\n\nYou have the following additional details:\n{}\n\nA doctor will ask you questions to diagnose your condition. Provide concise answers of 1-3 sentences, sharing only the relevant information from the additional details if asked. If the doctor asks about something not mentioned in the additional details, simply say 'I don't know.'"
@@ -192,7 +226,7 @@ class PatientAgent:
         return base.format(scenario, background)
 
     def first_prompt(self) -> str:
-        base = "You are a patient with the following background:\n{}\n\nYou have gone to the doctor to get a diagnosis for your condition. Start the conversation by presenting your primary symptom as your initial complaint:\n{}"
+        base = "You are a patient with the following background:\n{}\n\nYou have gone to the doctor to get a diagnosis for your condition. Start the conversation by presenting your primary symptom as your initial complaint:\n{}Provide a concise description of your primary symptom to the doctor."
 
         scenario = (
             "The patient is a "
@@ -205,12 +239,7 @@ class PatientAgent:
         return base.format(scenario, initial_complaint)
 
     def reset(self) -> None:
-        self.agent_hist = ""
         self.symptoms = self.scenario.patient_info
-
-    def add_hist(self, hist_str) -> None:
-        self.agent_hist += hist_str + "\n\n"
-
 
 class DoctorAgent:
     def __init__(self, scenario, backend_str="gpt4", max_infs=20) -> None:
@@ -218,8 +247,6 @@ class DoctorAgent:
         self.infs = 0
         # maximum number of inference calls to the patient
         self.MAX_INFS = max_infs
-        # conversation history between doctor and patient
-        self.agent_hist = ""
         # presentation information for patient
         self.presentation = ""
         # language model backend for patient agent
@@ -229,7 +256,7 @@ class DoctorAgent:
         self.reset()
         self.pipe = None
 
-    def inference_doctor(self, question) -> str:
+    def inference_doctor(self, doctor_dialogue) -> str:
         answer = str()
         if self.infs >= self.MAX_INFS:
             return "Maximum inferences reached"
@@ -238,11 +265,9 @@ class DoctorAgent:
                 {"role": "system", "content": self.system_prompt()},
                 {
                     "role": "user",
-                    "content": "\nHere is a history of your dialogue: "
-                    + self.agent_hist
-                    + "\n Here was the patient response: "
-                    + question
-                    + "Now please continue with your next response\nDoctor: ",
+                    "content": "\nHere is the dialogue history:\n"
+                    + doctor_dialogue
+                    + "\nPlease provide the doctor's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -257,11 +282,9 @@ class DoctorAgent:
                 {"role": "system", "content": self.system_prompt()},
                 {
                     "role": "user",
-                    "content": "\nHere is a history of your dialogue: "
-                    + self.agent_hist
-                    + "\n Here was the patient response: "
-                    + question
-                    + "Now please continue with your next response\nDoctor: ",
+                    "content": "\nHere is the dialogue history:\n"
+                    + doctor_dialogue
+                    + "\nPlease provide the doctor's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -276,11 +299,9 @@ class DoctorAgent:
                 {"role": "system", "content": self.system_prompt()},
                 {
                     "role": "user",
-                    "content": "\nHere is a history of your dialogue: "
-                    + self.agent_hist
-                    + "\n Here was the patient response: "
-                    + question
-                    + "Now please continue with your next response\nDoctor: ",
+                    "content": "\nHere is the dialogue history:\n"
+                    + doctor_dialogue
+                    + "\nPlease provide the doctor's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -292,11 +313,9 @@ class DoctorAgent:
 
         elif self.backend == "llama-2-70b-chat":
             prompt = (
-                "\nHere is a history of your dialogue: "
-                + self.agent_hist
-                + "\n Here was the patient response: "
-                + question
-                + "Now please continue with your next response\nDoctor: "
+                "\nHere is the dialogue history:\n"
+                + doctor_dialogue
+                + "\nPlease provide the doctor's response."
             )
             prompt = prompt[:]  # token limit
             output = replicate.run(
@@ -311,11 +330,9 @@ class DoctorAgent:
 
         elif self.backend == "mixtral-8x7b":
             prompt = (
-                "\nHere is a history of your dialogue: "
-                + self.agent_hist
-                + "\n Here was the patient response: "
-                + question
-                + "Now please continue with your next response\nDoctor: "
+                "\nHere is the dialogue history:\n"
+                + doctor_dialogue
+                + "\nPlease provide the doctor's response."
             )
             output = replicate.run(
                 mixtral_url,
@@ -329,11 +346,9 @@ class DoctorAgent:
         elif "HF_" in self.backend:
             input_text = (
                 self.system_prompt()
-                + "\nHere is a history of your dialogue: "
-                + self.agent_hist
-                + "\n Here was the patient response: "
-                + question
-                + "Now please continue with your next response\nDoctor: "
+                + "\nHere is the dialogue history:\n"
+                + doctor_dialogue
+                + "\nPlease provide the doctor's response."
             )
             if self.pipe is None:
                 self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
@@ -342,31 +357,29 @@ class DoctorAgent:
             raise Exception("No model by the name {}".format(self.backend))
 
         self.infs += 1
-        self.agent_hist += question + "\n\n" + answer + "\n\n"
         return answer
 
     def system_prompt(self) -> str:
-        base = "You are a doctor named Dr. Babi, diagnosing a {} patient. You will ask them concise questions (1-3 sentences each) in order to understand their disease. After gathering sufficient information, type the and tag and list 5 most likely diagnoses in this format: DIAGNOSIS READY: [diagnosis1, diagnosis2, diasnosis3, diagnosis4, diagnosis5]"
+        base = "You are a doctor named Dr. Babi, diagnosing a {} patient through an online chat platform. You will ask them concise questions (1-3 sentences each) in order to understand their disease. After gathering sufficient information, type the end tag and list the 5 most likely diagnoses in this format: DIAGNOSIS READY: [diagnosis1, diagnosis2, diagnosis3, diagnosis4, diagnosis5]"
         return base.format(self.presentation)
 
     def reset(self) -> None:
-        self.agent_hist = ""
         self.presentation = self.scenario.examiner_info
 
 
-def compare_results(diagnosis, correct_diagnosis, moderator_llm, mod_pipe):
+def compare_results(doctor_reply, correct_diagnosis, moderator_llm, mod_pipe):
     if moderator_llm == "gpt4":
         messages = [
             {
                 "role": "system",
-                "content": "You are responsible for determining if the correct diagnosis and the doctor diagnosis are the same disease. Please respond only with Yes or No. Nothing else.",
+                "content": "Is the correct diagnosis found in the list of differential diagnoses? Please respond only with Yes or No. Nothing else.",
             },
             {
                 "role": "user",
                 "content": "\nHere is the correct diagnosis: "
                 + correct_diagnosis
                 + "\n Here was the doctor diagnosis: "
-                + diagnosis
+                + doctor_reply
                 + "\nAre these the same?",
             },
         ]
@@ -378,11 +391,11 @@ def compare_results(diagnosis, correct_diagnosis, moderator_llm, mod_pipe):
         answer = response["choices"][0]["message"]["content"]
     elif "HF_" in moderator_llm:
         input_text = (
-            "You are responsible for determining if the corrent diagnosis and the doctor diagnosis are the same disease. Please respond only with Yes or No. Nothing else."
+            "Is the correct diagnosis found in the list of differential diagnoses? Please respond only with Yes or No. Nothing else."
             + "\nHere is the correct diagnosis: "
             + correct_diagnosis
             + "\n Here was the doctor diagnosis: "
-            + diagnosis
+            + doctor_reply
             + "\nAre these the same?"
         )
         answer = inference_huggingface(input_text, mod_pipe)
@@ -419,26 +432,30 @@ def main(
 
     for _scenario_id in range(0, min(num_scenarios, scenario_loader.num_scenarios)):
         total_presents += 1
-        pi_dialogue = str()
         scenario = scenario_loader.get_scenario(id=_scenario_id)
         patient_agent = PatientAgent(scenario=scenario, backend_str=patient_llm)
         doctor_agent = DoctorAgent(
             scenario=scenario, backend_str=doctor_llm, max_infs=20
         )
 
+        doctor_dialogue = ""
+
+        patient_reply = patient_agent.start_conversation()
+        print("Patient:", patient_reply)
+        doctor_dialogue = f"Patient: {patient_reply}\n"
+
         for _inf_id in range(20):
             if inf_type == "human_doctor":
-                doctor_dialogue = input("\nQuestion for patient: ")
+                doctor_reply = input("\nQuestion for patient: ")
             else:
-                doctor_dialogue = doctor_agent.inference_doctor(pi_dialogue)
-            print(
-                "Doctor [{}%]:".format(int(((_inf_id + 1) / 20) * 100)), doctor_dialogue
-            )
+                doctor_reply = doctor_agent.inference_doctor(doctor_dialogue)
+            print("Doctor:", doctor_reply)
+            doctor_dialogue += f"Doctor: {doctor_reply}\n"
 
-            if "DIAGNOSIS READY" in doctor_dialogue:
+            if "DIAGNOSIS READY" in doctor_reply:
                 correctness = (
                     compare_results(
-                        doctor_dialogue,
+                        doctor_reply,
                         scenario.diagnosis_information(),
                         moderator_llm,
                         pipe,
@@ -456,10 +473,11 @@ def main(
                 break
 
             if inf_type == "human_patient":
-                pi_dialogue = input("\nResponse to doctor: ")
+                patient_reply = input("\nResponse to doctor: ")
             else:
-                pi_dialogue = patient_agent.inference_patient(doctor_dialogue)
-            print("Patient [{}%]:".format(int(((_inf_id + 1) / 20) * 100)), pi_dialogue)
+                patient_reply = patient_agent.inference_patient(doctor_dialogue)
+            print("Patient:", patient_reply)
+            doctor_dialogue += f"Patient: {patient_reply}\n"
             # Prevent API timeouts
             time.sleep(1.0)
 
@@ -484,7 +502,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_scenarios",
         type=int,
-        default=1,
+        default=3,
         required=False,
         help="Number of scenarios to simulate",
     )
