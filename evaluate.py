@@ -30,13 +30,13 @@ class Scenario:
             "Temperature": scenario_dict["temperature"],
             "Past_Medical_History": scenario_dict["past_medical_history"],
             "Social_History": scenario_dict["social_history"],
-            "Review_of_Systems": scenario_dict["review_of_systems"]
+            "Review_of_Systems": scenario_dict["review_of_systems"],
         }
 
     def patient_information(self) -> dict:
         return self.patient_info
 
-    def examiner_information(self) -> dict:
+    def examiner_information(self) -> str:
         return self.examiner_info
 
     def diagnosis_information(self) -> dict:
@@ -47,7 +47,9 @@ class ScenarioLoader:
     def __init__(self) -> None:
         with open("agentclinic_vignettes.jsonl", "r") as f:
             self.scenario_strs = [json.loads(line) for line in f]
-        self.scenarios = [Scenario(scenario_dict) for scenario_dict in self.scenario_strs]
+        self.scenarios = [
+            Scenario(scenario_dict) for scenario_dict in self.scenario_strs
+        ]
         self.num_scenarios = len(self.scenarios)
 
     def sample_scenario(self) -> Scenario:
@@ -85,7 +87,7 @@ class PatientAgent:
                     + self.agent_hist
                     + "\n Here was the doctor response: "
                     + question
-                    + "Now please continue your dialogue\nPatient: ",
+                    + "Now please continue with your next response\nPatient: ",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -103,7 +105,7 @@ class PatientAgent:
                     + self.agent_hist
                     + "\n Here was the doctor response: "
                     + question
-                    + "Now please continue your dialogue\nPatient: ",
+                    + "Now please continue with your next response\nPatient: ",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -121,7 +123,7 @@ class PatientAgent:
                     + self.agent_hist
                     + "\n Here was the doctor response: "
                     + question
-                    + "Now please continue your dialogue\nPatient: ",
+                    + "Now please continue with your next response\nPatient: ",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -136,7 +138,7 @@ class PatientAgent:
                 + self.agent_hist
                 + "\n Here was the doctor response: "
                 + question
-                + "Now please continue your dialogue\nPatient: "
+                + "Now please continue with your next response\nPatient: "
             )
             output = replicate.run(
                 mixtral_url,
@@ -154,7 +156,7 @@ class PatientAgent:
                 + self.agent_hist
                 + "\n Here was the doctor response: "
                 + question
-                + "Now please continue your dialogue\nPatient: "
+                + "Now please continue with your next response\nPatient: "
             )
             if self.pipe is None:
                 self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
@@ -166,28 +168,45 @@ class PatientAgent:
         return answer
 
     def system_prompt(self) -> str:
-        base = "You are a patient with the following background:\n{}, {}\n\nYou have the following additional details:\nSecondary symptoms: {}\nPast medical history: {}\nSocial history: {}\nReview of systems: {}\nTemperature: {}\n\nA doctor will ask you questions to diagnose your condition. Provide concise answers of 1-3 sentences, sharing only the relevant information from the additional details if asked. If the doctor asks about something not mentioned in the additional details, simply say 'I don't know.'"
-        
-        scenario = "The patient is a " + self.symptoms["Demographics"] + ". " + self.symptoms["History"]
-        background = ", ".join(self.symptoms["Secondary_Symptoms"]) + "\n" + \
-                    self.symptoms["Past_Medical_History"] + "\n" + \
-                    self.symptoms["Social_History"] + "\n" + \
-                    self.symptoms["Review_of_Systems"] + "\n" + \
-                    self.symptoms["Temperature"]
-        
+        base = "You are a patient with the following background:\n{}\n\nYou have the following additional details:\n{}\n\nA doctor will ask you questions to diagnose your condition. Provide concise answers of 1-3 sentences, sharing only the relevant information from the additional details if asked. If the doctor asks about something not mentioned in the additional details, simply say 'I don't know.'"
+
+        scenario = (
+            "The patient is a "
+            + self.symptoms["Demographics"]
+            + ". "
+            + self.symptoms["History"]
+        )
+        background = (
+            "Secondary symptoms: "
+            + ", ".join(self.symptoms["Secondary_Symptoms"])
+            + "\nPast medical history: "
+            + self.symptoms["Past_Medical_History"]
+            + "\nSocial history: "
+            + self.symptoms["Social_History"]
+            + "\nReview of systems: "
+            + self.symptoms["Review_of_Systems"]
+            + "\nTemperature: "
+            + self.symptoms["Temperature"]
+        )
+
         return base.format(scenario, background)
-    
+
     def first_prompt(self) -> str:
         base = "You are a patient with the following background:\n{}\n\nYou have gone to the doctor to get a diagnosis for your condition. Start the conversation by presenting your primary symptom as your initial complaint:\n{}"
-        
-        scenario = "The patient is a " + self.symptoms["Demographics"] + ". " + self.symptoms["History"]
+
+        scenario = (
+            "The patient is a "
+            + self.symptoms["Demographics"]
+            + ". "
+            + self.symptoms["History"]
+        )
         initial_complaint = self.symptoms["Primary_Symptom"]
-        
+
         return base.format(scenario, initial_complaint)
 
     def reset(self) -> None:
         self.agent_hist = ""
-        self.symptoms = self.scenario.patient_info()
+        self.symptoms = self.scenario.patient_info
 
     def add_hist(self, hist_str) -> None:
         self.agent_hist += hist_str + "\n\n"
@@ -223,7 +242,7 @@ class DoctorAgent:
                     + self.agent_hist
                     + "\n Here was the patient response: "
                     + question
-                    + "Now please continue your dialogue\nDoctor: ",
+                    + "Now please continue with your next response\nDoctor: ",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -242,7 +261,7 @@ class DoctorAgent:
                     + self.agent_hist
                     + "\n Here was the patient response: "
                     + question
-                    + "Now please continue your dialogue\nDoctor: ",
+                    + "Now please continue with your next response\nDoctor: ",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -261,7 +280,7 @@ class DoctorAgent:
                     + self.agent_hist
                     + "\n Here was the patient response: "
                     + question
-                    + "Now please continue your dialogue\nDoctor: ",
+                    + "Now please continue with your next response\nDoctor: ",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -277,7 +296,7 @@ class DoctorAgent:
                 + self.agent_hist
                 + "\n Here was the patient response: "
                 + question
-                + "Now please continue your dialogue\nDoctor: "
+                + "Now please continue with your next response\nDoctor: "
             )
             prompt = prompt[:]  # token limit
             output = replicate.run(
@@ -296,7 +315,7 @@ class DoctorAgent:
                 + self.agent_hist
                 + "\n Here was the patient response: "
                 + question
-                + "Now please continue your dialogue\nDoctor: "
+                + "Now please continue with your next response\nDoctor: "
             )
             output = replicate.run(
                 mixtral_url,
@@ -314,7 +333,7 @@ class DoctorAgent:
                 + self.agent_hist
                 + "\n Here was the patient response: "
                 + question
-                + "Now please continue your dialogue\nDoctor: "
+                + "Now please continue with your next response\nDoctor: "
             )
             if self.pipe is None:
                 self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
@@ -327,12 +346,12 @@ class DoctorAgent:
         return answer
 
     def system_prompt(self) -> str:
-        base = 'You are a doctor named Dr. Babi, diagnosing a {} patient. You will ask them concise questions (1-3 sentences each) in order to understand their disease. After gathering sufficient information, list 5 most likely diagnoses in this format: [diagnosis1, diagnosis2, diasnosis3, diagnosis4, diagnosis5]'
-        return base.format(self.presentation["Demographics"])
+        base = "You are a doctor named Dr. Babi, diagnosing a {} patient. You will ask them concise questions (1-3 sentences each) in order to understand their disease. After gathering sufficient information, type the and tag and list 5 most likely diagnoses in this format: DIAGNOSIS READY: [diagnosis1, diagnosis2, diasnosis3, diagnosis4, diagnosis5]"
+        return base.format(self.presentation)
 
     def reset(self) -> None:
         self.agent_hist = ""
-        self.presentation = self.scenario.examiner_info()
+        self.presentation = self.scenario.examiner_info
 
 
 def compare_results(diagnosis, correct_diagnosis, moderator_llm, mod_pipe):
@@ -346,7 +365,7 @@ def compare_results(diagnosis, correct_diagnosis, moderator_llm, mod_pipe):
                 "role": "user",
                 "content": "\nHere is the correct diagnosis: "
                 + correct_diagnosis
-                + "\n Here was the doctor dialogue: "
+                + "\n Here was the doctor diagnosis: "
                 + diagnosis
                 + "\nAre these the same?",
             },
@@ -362,7 +381,7 @@ def compare_results(diagnosis, correct_diagnosis, moderator_llm, mod_pipe):
             "You are responsible for determining if the corrent diagnosis and the doctor diagnosis are the same disease. Please respond only with Yes or No. Nothing else."
             + "\nHere is the correct diagnosis: "
             + correct_diagnosis
-            + "\n Here was the doctor dialogue: "
+            + "\n Here was the doctor diagnosis: "
             + diagnosis
             + "\nAre these the same?"
         )
@@ -461,7 +480,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--doctor_llm", type=str, default="gpt4")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
-    parser.add_argument("--measurement_llm", type=str, default="gpt4")
     parser.add_argument("--moderator_llm", type=str, default="gpt4")
     parser.add_argument(
         "--num_scenarios",
@@ -476,11 +494,8 @@ if __name__ == "__main__":
         args.openai_api_key,
         args.replicate_api_key,
         args.inf_type,
-        args.doctor_bias,
-        args.patient_bias,
         args.doctor_llm,
         args.patient_llm,
-        args.measurement_llm,
         args.moderator_llm,
         args.num_scenarios,
     )
