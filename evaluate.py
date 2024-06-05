@@ -1,8 +1,9 @@
 import argparse
+from config import openai_api_key
 from transformers import pipeline
 import openai, re, random, time, json, replicate, os
 
-llama_url = "meta/llama-2-70b-chat"
+llama_url = "meta/meta-llama-3-70b-instruct"
 mixtral_url = "mistralai/mixtral-8x7b-instruct-v0.1"
 
 
@@ -83,7 +84,7 @@ class PatientAgent:
                     "role": "user",
                     "content": "\nHere is the dialogue history:\n"
                     + doctor_dialogue
-                    + "\nPlease provide the patient's response.",
+                    + "\nProvide the patient's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -99,7 +100,7 @@ class PatientAgent:
                     "role": "user",
                     "content": "\nHere is the dialogue history:\n"
                     + doctor_dialogue
-                    + "\nPlease provide the patient's response.",
+                    + "\nProvide the patient's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -115,7 +116,7 @@ class PatientAgent:
                     "role": "user",
                     "content": "\nHere is the dialogue history:\n"
                     + doctor_dialogue
-                    + "\nPlease provide the patient's response.",
+                    + "\nProvide the patient's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -128,7 +129,7 @@ class PatientAgent:
             prompt = (
                 "\nHere is the dialogue history:\n"
                 + doctor_dialogue
-                + "\nPlease provide the patient's response."
+                + "\nProvide the patient's response."
             )
             output = replicate.run(
                 mixtral_url,
@@ -144,7 +145,7 @@ class PatientAgent:
                 self.system_prompt()
                 + "\nHere is the dialogue history:\n"
                 + doctor_dialogue
-                + "\nPlease provide the patient's response."
+                + "\nProvide the patient's response."
             )
             if self.pipe is None:
                 self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
@@ -267,7 +268,7 @@ class DoctorAgent:
                     "role": "user",
                     "content": "\nHere is the dialogue history:\n"
                     + doctor_dialogue
-                    + "\nPlease provide the doctor's response.",
+                    + "\nProvide the doctor's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -284,7 +285,7 @@ class DoctorAgent:
                     "role": "user",
                     "content": "\nHere is the dialogue history:\n"
                     + doctor_dialogue
-                    + "\nPlease provide the doctor's response.",
+                    + "\nProvide the doctor's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -301,7 +302,7 @@ class DoctorAgent:
                     "role": "user",
                     "content": "\nHere is the dialogue history:\n"
                     + doctor_dialogue
-                    + "\nPlease provide the doctor's response.",
+                    + "\nProvide the doctor's response.",
                 },
             ]
             response = openai.ChatCompletion.create(
@@ -311,11 +312,11 @@ class DoctorAgent:
             )
             answer = response["choices"][0]["message"]["content"]
 
-        elif self.backend == "llama-2-70b-chat":
+        elif self.backend == "llama-3-70b-instruct":
             prompt = (
                 "\nHere is the dialogue history:\n"
                 + doctor_dialogue
-                + "\nPlease provide the doctor's response."
+                + "\nProvide the doctor's response."
             )
             prompt = prompt[:]  # token limit
             output = replicate.run(
@@ -332,7 +333,7 @@ class DoctorAgent:
             prompt = (
                 "\nHere is the dialogue history:\n"
                 + doctor_dialogue
-                + "\nPlease provide the doctor's response."
+                + "\nProvide the doctor's response."
             )
             output = replicate.run(
                 mixtral_url,
@@ -348,7 +349,7 @@ class DoctorAgent:
                 self.system_prompt()
                 + "\nHere is the dialogue history:\n"
                 + doctor_dialogue
-                + "\nPlease provide the doctor's response."
+                + "\nProvide the doctor's response."
             )
             if self.pipe is None:
                 self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
@@ -372,7 +373,7 @@ def compare_results(doctor_reply, correct_diagnosis, moderator_llm, mod_pipe):
         messages = [
             {
                 "role": "system",
-                "content": "Is the correct diagnosis found in the list of differential diagnoses? Please respond only with Yes or No. Nothing else.",
+                "content": "Is the correct diagnosis found in the list of differential diagnoses? Respond only with Yes or No. Nothing else.",
             },
             {
                 "role": "user",
@@ -414,12 +415,15 @@ def main(
     moderator_llm,
     num_scenarios,
 ):
+    if api_key is None:
+        api_key = openai_api_key
     openai.api_key = api_key
     if patient_llm == "mixtral-8x7b" or doctor_llm in [
-        "llama-2-70b-chat",
+        "llama-3-70b-instruct",
         "mixtral-8x7b",
     ]:
-        os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
+        if replicate_api_key is None:
+            replicate_api_key = replicate_api_key
 
     scenario_loader = ScenarioLoader()
     total_correct = 0
@@ -496,13 +500,13 @@ if __name__ == "__main__":
         choices=["llm", "human_doctor", "human_patient"],
         default="llm",
     )
-    parser.add_argument("--doctor_llm", type=str, default="gpt4")
+    parser.add_argument("--doctor_llm", type=str, default="llama-3-70-instruct")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--moderator_llm", type=str, default="gpt4")
     parser.add_argument(
         "--num_scenarios",
         type=int,
-        default=3,
+        default=1,
         required=False,
         help="Number of scenarios to simulate",
     )
