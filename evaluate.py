@@ -1,21 +1,9 @@
 import argparse
 from config import openai_api_key
-from transformers import pipeline
-import openai, re, random, time, json, replicate, os
+import openai, random, time, json, replicate
 
 llama_url = "meta/meta-llama-3-70b-instruct"
 mixtral_url = "mistralai/mixtral-8x7b-instruct-v0.1"
-
-
-def load_huggingface_model(model_name):
-    pipe = pipeline("text-generation", model=model_name, device_map="auto")
-    return pipe
-
-
-def inference_huggingface(prompt, pipe):
-    response = pipe(prompt, max_new_tokens=100)[0]["generated_text"]
-    response = response.replace(prompt, "")
-    return response
 
 
 class Scenario:
@@ -140,21 +128,11 @@ class PatientAgent:
                 },
             )
             answer = "".join(output)
-        elif "HF_" in self.backend:
-            input_text = (
-                self.system_prompt()
-                + "\nHere is the dialogue history:\n"
-                + doctor_dialogue
-                + "\nProvide the patient's response."
-            )
-            if self.pipe is None:
-                self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
-            answer = inference_huggingface(input_text, self.pipe)
         else:
             raise Exception("No model by the name {}".format(self.backend))
 
         return answer
-    
+
     def start_conversation(self) -> str:
         system_prompt = self.first_prompt()
         messages = [{"role": "system", "content": system_prompt}]
@@ -191,16 +169,10 @@ class PatientAgent:
                 },
             )
             answer = "".join(output)
-        elif "HF_" in self.backend:
-            input_text = system_prompt
-            if self.pipe is None:
-                self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
-            answer = inference_huggingface(input_text, self.pipe)
         else:
             raise Exception("No model by the name {}".format(self.backend))
 
         return answer
-    
 
     def system_prompt(self) -> str:
         base = "You are a patient with the following background:\n{}\n\nYou have the following additional details:\n{}\n\nA doctor will ask you questions to diagnose your condition. Provide concise answers of 1-3 sentences, sharing only the relevant information from the additional details if asked. If the doctor asks about something not mentioned in the additional details, simply say 'I don't know.'"
@@ -242,6 +214,7 @@ class PatientAgent:
     def reset(self) -> None:
         self.symptoms = self.scenario.patient_info
 
+
 class DoctorAgent:
     def __init__(self, scenario, backend_str="gpt4", max_infs=20) -> None:
         # number of inference calls to the patient
@@ -259,8 +232,6 @@ class DoctorAgent:
 
     def inference_doctor(self, doctor_dialogue) -> str:
         answer = str()
-        if self.infs >= self.MAX_INFS:
-            return "Maximum inferences reached"
         if self.backend == "gpt4":
             messages = [
                 {"role": "system", "content": self.system_prompt()},
@@ -344,16 +315,6 @@ class DoctorAgent:
                 },
             )
             answer = "".join(output)
-        elif "HF_" in self.backend:
-            input_text = (
-                self.system_prompt()
-                + "\nHere is the dialogue history:\n"
-                + doctor_dialogue
-                + "\nProvide the doctor's response."
-            )
-            if self.pipe is None:
-                self.pipe = load_huggingface_model(self.backend.replace("HF_", ""))
-            answer = inference_huggingface(input_text, self.pipe)
         else:
             raise Exception("No model by the name {}".format(self.backend))
 
@@ -368,7 +329,7 @@ class DoctorAgent:
         self.presentation = self.scenario.examiner_info
 
 
-def compare_results(doctor_reply, correct_diagnosis, moderator_llm, mod_pipe):
+def compare_results(doctor_reply, correct_diagnosis, moderator_llm):
     if moderator_llm == "gpt4":
         messages = [
             {
@@ -390,16 +351,6 @@ def compare_results(doctor_reply, correct_diagnosis, moderator_llm, mod_pipe):
             temperature=0.0,
         )
         answer = response["choices"][0]["message"]["content"]
-    elif "HF_" in moderator_llm:
-        input_text = (
-            "Is the correct diagnosis found in the list of differential diagnoses? Please respond only with Yes or No. Nothing else."
-            + "\nHere is the correct diagnosis: "
-            + correct_diagnosis
-            + "\n Here was the doctor diagnosis: "
-            + doctor_reply
-            + "\nAre these the same?"
-        )
-        answer = inference_huggingface(input_text, mod_pipe)
     else:
         raise Exception("No model by the name {}".format(moderator_llm))
 
@@ -409,7 +360,6 @@ def compare_results(doctor_reply, correct_diagnosis, moderator_llm, mod_pipe):
 def main(
     api_key,
     replicate_api_key,
-    inf_type,
     doctor_llm,
     patient_llm,
     moderator_llm,
@@ -429,11 +379,6 @@ def main(
     total_correct = 0
     total_presents = 0
 
-    if "HF_" in moderator_llm:
-        pipe = load_huggingface_model(moderator_llm.replace("HF_", ""))
-    else:
-        pipe = None
-
     for _scenario_id in range(0, min(num_scenarios, scenario_loader.num_scenarios)):
         total_presents += 1
         scenario = scenario_loader.get_scenario(id=_scenario_id)
@@ -448,11 +393,8 @@ def main(
         print("Patient:", patient_reply)
         doctor_dialogue = f"Patient: {patient_reply}\n"
 
-        for _inf_id in range(20):
-            if inf_type == "human_doctor":
-                doctor_reply = input("\nQuestion for patient: ")
-            else:
-                doctor_reply = doctor_agent.inference_doctor(doctor_dialogue)
+        while True:
+            doctor_reply = doctor_agent.inference_doctor(doctor_dialogue)
             print("Doctor:", doctor_reply)
             doctor_dialogue += f"Doctor: {doctor_reply}\n"
 
@@ -462,7 +404,6 @@ def main(
                         doctor_reply,
                         scenario.diagnosis_information(),
                         moderator_llm,
-                        pipe,
                     )
                     == "yes"
                 )
@@ -476,10 +417,11 @@ def main(
                 )
                 break
 
-            if inf_type == "human_patient":
-                patient_reply = input("\nResponse to doctor: ")
-            else:
-                patient_reply = patient_agent.inference_patient(doctor_dialogue)
+            if doctor_agent.infs >= doctor_agent.MAX_INFS:
+                print("Maximum inferences reached. Diagnosis not completed.")
+                break
+
+            patient_reply = patient_agent.inference_patient(doctor_dialogue)
             print("Patient:", patient_reply)
             doctor_dialogue += f"Patient: {patient_reply}\n"
             # Prevent API timeouts
@@ -494,13 +436,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--replicate_api_key", type=str, required=False, help="Replicate API Key"
     )
-    parser.add_argument(
-        "--inf_type",
-        type=str,
-        choices=["llm", "human_doctor", "human_patient"],
-        default="llm",
-    )
-    parser.add_argument("--doctor_llm", type=str, default="llama-3-70-instruct")
+    parser.add_argument("--doctor_llm", type=str, default="gpt3.5")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--moderator_llm", type=str, default="gpt4")
     parser.add_argument(
@@ -515,7 +451,6 @@ if __name__ == "__main__":
     main(
         args.openai_api_key,
         args.replicate_api_key,
-        args.inf_type,
         args.doctor_llm,
         args.patient_llm,
         args.moderator_llm,
