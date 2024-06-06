@@ -1,20 +1,20 @@
 import argparse
 from config import MAX_INFERENCES
-from vignette import VignetteLoader
+from scenario import ScenarioLoader
 from patient import PatientAgent
 from doctor import DoctorAgent
 from evaluator import compare_results
 
 
-def main(doctor_llm, patient_llm, evaluator_llm, num_vignettes):
-    vignette_loader = VignetteLoader()
+def main(doctor_llm, patient_llm, evaluator_llm, num_scenarios):
+    scenario_loader = ScenarioLoader()
     total_correct = 0
     total_presents = 0
 
-    for vignette in vignette_loader.vignettes[:num_vignettes]:
+    for scenario in scenario_loader.scenarios[:num_scenarios]:
         total_presents += 1
-        patient_agent = PatientAgent(vignette, patient_llm)
-        doctor_agent = DoctorAgent(vignette, doctor_llm, MAX_INFERENCES)
+        patient_agent = PatientAgent(scenario, patient_llm)
+        doctor_agent = DoctorAgent(scenario, doctor_llm, MAX_INFERENCES)
 
         doctor_dialogue = ""
 
@@ -31,7 +31,7 @@ def main(doctor_llm, patient_llm, evaluator_llm, num_vignettes):
                 correctness = (
                     compare_results(
                         doctor_reply,
-                        vignette.diagnosis_information(),
+                        scenario.diagnosis_information(),
                         evaluator_llm,
                     )
                     == "yes"
@@ -40,7 +40,7 @@ def main(doctor_llm, patient_llm, evaluator_llm, num_vignettes):
                 if correctness:
                     total_correct += 1
 
-                print("\nCorrect answer:", vignette.diagnosis_information())
+                print("\nCorrect answer:", scenario.diagnosis_information())
                 print(
                     f"Scene {total_presents}, The diagnosis was",
                     "CORRECT" if correctness else "INCORRECT",
@@ -58,17 +58,17 @@ def main(doctor_llm, patient_llm, evaluator_llm, num_vignettes):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Medical Diagnosis Simulation CLI")
-    parser.add_argument("--doctor_llm", type=str, default="gpt4")
+    parser = argparse.ArgumentParser(description="Symptom Assessment Simulation CLI")
+    parser.add_argument("--doctor_llm", type=str, default="gpt3.5")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--evaluator_llm", type=str, default="gpt4")
     parser.add_argument(
-        "--num_vignettes",
+        "--num_scenarios",
         type=int,
         default=1,
         required=False,
-        help="Number of vignettes to simulate",
+        help="Number of scenarios to simulate",
     )
     args = parser.parse_args()
 
-    main(args.doctor_llm, args.patient_llm, args.evaluator_llm, args.num_vignettes)
+    main(args.doctor_llm, args.patient_llm, args.evaluator_llm, args.num_scenarios)

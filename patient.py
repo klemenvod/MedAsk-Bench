@@ -3,8 +3,8 @@ from models import MODELS
 
 
 class PatientAgent:
-    def __init__(self, vignette, backend_str="gpt4"):
-        self.vignette = vignette
+    def __init__(self, scenario, backend_str="gpt4"):
+        self.scenario = scenario
         self.backend = backend_str
         self.api_client = APIClient()
         self.reset()
@@ -56,7 +56,7 @@ class PatientAgent:
     def system_prompt(self):
         base = "You are a patient with the following background:\n{}\n\nYou have the following additional details:\n{}\n\nA doctor will ask you questions to diagnose your condition. Provide concise answers of 1-3 sentences, sharing only the relevant information from the additional details if asked. If the doctor asks about something not mentioned in the additional details, simply say 'I don't know.'"
 
-        vignette = (
+        scenario = (
             "The patient is a "
             + self.symptoms["Demographics"]
             + ". "
@@ -75,12 +75,12 @@ class PatientAgent:
             + self.symptoms["Temperature"]
         )
 
-        return base.format(vignette, background)
+        return base.format(scenario, background)
 
     def first_prompt(self):
         base = "You are a patient with the following background:\n{}\n\nYou have gone to the doctor to get a diagnosis for your condition. Start the conversation by presenting your primary symptom as your initial complaint:\n{}Provide a concise description of your primary symptom to the doctor."
 
-        vignette = (
+        scenario = (
             "The patient is a "
             + self.symptoms["Demographics"]
             + ". "
@@ -88,7 +88,7 @@ class PatientAgent:
         )
         initial_complaint = self.symptoms["Primary_Symptom"]
 
-        return base.format(vignette, initial_complaint)
+        return base.format(scenario, initial_complaint)
 
     def reset(self):
-        self.symptoms = self.vignette.patient_info
+        self.symptoms = self.scenario.patient_info

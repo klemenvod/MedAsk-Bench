@@ -4,12 +4,12 @@ from config import MAX_INFERENCES
 
 
 class DoctorAgent:
-    def __init__(self, vignette, backend_str="gpt4", max_infs=MAX_INFERENCES):
+    def __init__(self, scenario, backend_str="gpt4", max_infs=MAX_INFERENCES):
         self.infs = 0
         self.MAX_INFS = max_infs
         self.presentation = ""
         self.backend = backend_str
-        self.vignette = vignette
+        self.scenario = scenario
         self.api_client = APIClient()
         self.reset()
 
@@ -45,4 +45,4 @@ class DoctorAgent:
         return base.format(self.presentation)
 
     def reset(self):
-        self.presentation = self.vignette.doctor_info
+        self.presentation = self.scenario.doctor_info
