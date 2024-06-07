@@ -1,13 +1,13 @@
 import argparse
-from config import MAX_INFERENCES
+from config import MAX_INFERENCES, AGENTCLINIC_VIGNETTES
 from scenario import ScenarioLoader
 from patient import PatientAgent
 from doctor import DoctorAgent
 from evaluator import compare_results
 
 
-def main(doctor_llm, patient_llm, evaluator_llm, num_scenarios):
-    scenario_loader = ScenarioLoader()
+def main(doctor_llm, patient_llm, evaluator_llm, num_scenarios, file_path):
+    scenario_loader = ScenarioLoader(file_path)
     total_correct = 0
     total_presents = 0
 
@@ -69,6 +69,19 @@ if __name__ == "__main__":
         required=False,
         help="Number of scenarios to simulate",
     )
+    parser.add_argument(
+        "--file_path",
+        type=str,
+        default=AGENTCLINIC_VIGNETTES,
+        required=False,
+        help="Path to the scenario file (default: AGENTCLINIC_VIGNETTES)",
+    )
     args = parser.parse_args()
 
-    main(args.doctor_llm, args.patient_llm, args.evaluator_llm, args.num_scenarios)
+    main(
+        args.doctor_llm,
+        args.patient_llm,
+        args.evaluator_llm,
+        args.num_scenarios,
+        args.file_path,
+    )

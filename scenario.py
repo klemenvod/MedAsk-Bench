@@ -1,6 +1,4 @@
 import json
-import random
-from config import AGENTCLINIC_VIGNETTES
 
 
 class Scenario:
@@ -30,18 +28,10 @@ class Scenario:
 
 
 class ScenarioLoader:
-    def __init__(self):
-        with open(AGENTCLINIC_VIGNETTES, "r") as f:
+    def __init__(self, file_path):
+        with open(file_path, "r") as f:
             self.scenario_strs = [json.loads(line) for line in f]
         self.scenarios = [
             Scenario(scenario_dict) for scenario_dict in self.scenario_strs
         ]
         self.num_scenarios = len(self.scenarios)
-
-    def sample_scenario(self):
-        return self.scenarios[random.randint(0, len(self.scenarios) - 1)]
-
-    def get_scenario(self, id):
-        if id is None:
-            return self.sample_scenario()
-        return self.scenarios[id]
