@@ -1,5 +1,5 @@
 import argparse
-from config import MAX_INFERENCES, AGENTCLINIC_VIGNETTES
+from config import MAX_INFERENCES, AGENTCLINIC_VIGNETTES, AVEY_VIGNETTES
 from scenario import ScenarioLoader
 from patient import PatientAgent
 from doctor import DoctorAgent
@@ -72,16 +72,24 @@ if __name__ == "__main__":
     parser.add_argument(
         "--file_path",
         type=str,
-        default=AGENTCLINIC_VIGNETTES,
-        required=False,
-        help="Path to the scenario file (default: AGENTCLINIC_VIGNETTES)",
+        choices=["avey", "agentclinic"],
+        required=True,
+        help="Specify 'avey' for AVEY_VIGNETTES or 'agentclinic' for AGENTCLINIC_VIGNETTES",
     )
     args = parser.parse_args()
+
+    # Map the user input to the corresponding file path
+    if args.file_path == "avey":
+        file_path = AVEY_VIGNETTES
+    elif args.file_path == "agentclinic":
+        file_path = AGENTCLINIC_VIGNETTES
+    else:
+        raise ValueError("Invalid file path specified")
 
     main(
         args.doctor_llm,
         args.patient_llm,
         args.evaluator_llm,
         args.num_scenarios,
-        args.file_path,
+        file_path,
     )
