@@ -99,7 +99,7 @@ class PatientAgent:
         return base.format(scenario, background)
 
     def first_prompt(self):
-        base = "You are a patient with the following background:\n{}\n\nYou have gone to the doctor to get a diagnosis for your condition. Start the conversation by presenting your primary symptom as your initial complaint:\n{}Provide a concise description of your primary symptom to the doctor."
+        base = "You are a patient with the following background:\n{}\n\nYou have gone to the doctor to get a diagnosis for your condition. Start the conversation by presenting ONLY your primary symptom as your initial complaint:\n{}Provide a concise description of your primary symptom to the doctor."
 
         if isinstance(self.scenario, ScenarioAgentclinic):
             scenario = (

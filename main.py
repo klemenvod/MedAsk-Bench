@@ -59,7 +59,7 @@ def main(doctor_llm, patient_llm, evaluator_llm, num_scenarios, file_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Symptom Assessment Simulation CLI")
-    parser.add_argument("--doctor_llm", type=str, default="gpt3.5")
+    parser.add_argument("--doctor_llm", type=str, default="claude-opus")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--evaluator_llm", type=str, default="gpt4")
     parser.add_argument(

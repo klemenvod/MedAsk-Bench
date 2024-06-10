@@ -4,6 +4,8 @@ from config import (
     GPT_TEMPERATURE,
     LLAMA_MAX_NEW_TOKENS,
     MIXTRAL_MAX_NEW_TOKENS,
+    CLAUDE_MAX_TOKENS,
+    CLAUDE_TEMPERATURE,
 )
 
 MODELS = {
@@ -26,5 +28,10 @@ MODELS = {
     "mixtral-8x7b": {
         "url": MIXTRAL_URL,
         "max_new_tokens": MIXTRAL_MAX_NEW_TOKENS,
+    },
+    "claude-opus": {
+        "url": "claude-3-opus-20240229",
+        "max_tokens": CLAUDE_MAX_TOKENS,
+        "temperature": CLAUDE_TEMPERATURE,
     },
 }
