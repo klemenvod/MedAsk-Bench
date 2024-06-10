@@ -11,6 +11,7 @@ argparse = "*"
 transformers = "*"
 black = "*"
 anthropic = "*"
+google-generativeai = "*"
 
 [dev-packages]
 

@@ -1,7 +1,8 @@
 import openai
 import replicate
 import anthropic
-from config import OPENAI_API_KEY, REPLICATE_API_KEY, ANTHROPIC_API_KEY
+import google.generativeai as genai
+from config import OPENAI_API_KEY, REPLICATE_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY
 
 
 class APIClient:
@@ -9,22 +10,23 @@ class APIClient:
         openai.api_key = OPENAI_API_KEY
         replicate.api_key = REPLICATE_API_KEY
         self.anthropic_client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
+        genai.configure(api_key=GOOGLE_API_KEY)
 
-    def call_openai(self, model, messages, temperature):
+    def call_openai(self, model, prompt, temperature):
         response = openai.ChatCompletion.create(
             model=model,
-            messages=messages,
+            messages=prompt,
             temperature=temperature,
         )
         return response["choices"][0]["message"]["content"]
 
-    def call_replicate(self, model_url, prompt, system_prompt, max_new_tokens):
+    def call_replicate(self, model, prompt, system_prompt, max_tokens):
         output = replicate.run(
-            model_url,
+            model,
             input={
                 "prompt": prompt,
                 "system_prompt": system_prompt,
-                "max_new_tokens": max_new_tokens,
+                "max_new_tokens": max_tokens,
             },
         )
         return "".join(output)
@@ -38,3 +40,14 @@ class APIClient:
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text
+
+    def call_google(self, model, prompt, max_tokens, temperature):
+        model = genai.GenerativeModel(
+            model,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+            ),
+        )
+        response = model.generate_content(prompt)
+        return response.text

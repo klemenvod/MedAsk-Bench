@@ -32,13 +32,23 @@ class DoctorAgent:
                 model_config["url"],
                 prompt,
                 self.system_prompt(),
-                model_config["max_new_tokens"],
+                model_config["max_tokens"],
             )
         elif self.backend == "claude-opus":
             response = self.api_client.call_anthropic(
                 model_config["url"],
                 self.system_prompt(),
                 prompt,
+                model_config["max_tokens"],
+                model_config["temperature"],
+            )
+        elif self.backend == "gemini":
+            combined_prompt = (
+                f"System prompt:\n{self.system_prompt()}\nInstructions: \n{prompt}"
+            )
+            response = self.api_client.call_google(
+                model_config["url"],
+                combined_prompt,
                 model_config["max_tokens"],
                 model_config["temperature"],
             )
