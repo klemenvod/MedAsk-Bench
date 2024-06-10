@@ -28,22 +28,22 @@ def main(doctor_llm, patient_llm, evaluator_llm, num_scenarios, file_path):
             doctor_dialogue += f"Doctor: {doctor_reply}\n"
 
             if "DIAGNOSIS READY" in doctor_reply:
-                correctness = (
+                correct_diagnosis_present, position = (
                     compare_results(
                         doctor_reply,
                         scenario.diagnosis_information(),
                         evaluator_llm,
                     )
-                    == "yes"
                 )
 
-                if correctness:
+                if correct_diagnosis_present == "yes":
                     total_correct += 1
 
                 print("\nCorrect answer:", scenario.diagnosis_information())
                 print(
                     f"Scene {total_presents}, The diagnosis was",
-                    "CORRECT" if correctness else "INCORRECT",
+                    "CORRECT" if correct_diagnosis_present == "yes" else "INCORRECT",
+                    f"in position {position}.",
                     int((total_correct / total_presents) * 100),
                 )
                 break
@@ -59,7 +59,7 @@ def main(doctor_llm, patient_llm, evaluator_llm, num_scenarios, file_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Symptom Assessment Simulation CLI")
-    parser.add_argument("--doctor_llm", type=str, default="gemini")
+    parser.add_argument("--doctor_llm", type=str, default="mixtral-8x7b")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--evaluator_llm", type=str, default="gpt4")
     parser.add_argument(

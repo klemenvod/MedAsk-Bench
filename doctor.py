@@ -59,7 +59,7 @@ class DoctorAgent:
         return response
 
     def system_prompt(self):
-        base = "You are a doctor named Dr. Babi, diagnosing a {} patient through an online chat platform. You will ask them concise questions (1-3 sentences each reply) in order to understand their disease. After gathering sufficient information, type the end tag and list the 5 most likely diagnoses in this format: DIAGNOSIS READY: [diagnosis1, diagnosis2, diagnosis3, diagnosis4, diagnosis5]"
+        base = "You are a doctor diagnosing a {} patient through an online chat platform. You will ask them concise questions (1-3 sentences each reply) in order to understand their disease. After gathering sufficient information, type the end tag and list the 5 most likely diagnoses in this format: DIAGNOSIS READY: [diagnosis1, diagnosis2, diagnosis3, diagnosis4, diagnosis5]"
         return base.format(self.presentation)
 
     def reset(self):

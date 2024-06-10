@@ -7,16 +7,16 @@ def compare_results(doctor_reply, correct_diagnosis, evaluator_llm):
         messages = [
             {
                 "role": "system",
-                "content": "Is the correct diagnosis found in the list of differential diagnoses? Respond only with Yes or No. Nothing else.",
+                "content": "Given a list of differential diagnoses and the correct diagnosis, determine if the correct diagnosis is present in the list. If it is, specify its position. Respond in the following format: \n\nCorrect diagnosis present: YES/NO \nPosition: [number]",
             },
             {
                 "role": "user",
                 "content": (
-                    "\nHere is the correct diagnosis: "
-                    + correct_diagnosis
-                    + "\nHere was the doctor diagnosis: "
+                    "\nHere are the differential diagnoses: "
                     + doctor_reply
-                    + "\nAre these the same?"
+                    + "\nHere is the correct diagnosis: "
+                    + correct_diagnosis
+                    + "\nResponse:"
                 ),
             },
         ]
@@ -25,6 +25,13 @@ def compare_results(doctor_reply, correct_diagnosis, evaluator_llm):
             messages,
             temperature=0.0,
         )
-        return response.lower()
+        lines = response.lower().split("\n")
+        
+        # Extract the "YES/NO" value and position number
+        correct_diagnosis_present = lines[0].split(":")[1].strip()
+        position = lines[1].split(":")[1].strip()
+        
+        # Return a tuple with the extracted values
+        return (correct_diagnosis_present, position)
     else:
         raise ValueError(f"Unsupported evaluator model: {evaluator_llm}")
