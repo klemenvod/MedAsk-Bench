@@ -26,11 +26,11 @@ def compare_results(doctor_reply, correct_diagnosis, evaluator_llm):
             temperature=0.0,
         )
         lines = response.lower().split("\n")
-        
+
         # Extract the "YES/NO" value and position number
         correct_diagnosis_present = lines[0].split(":")[1].strip()
         position = lines[1].split(":")[1].strip()
-        
+
         # Return a tuple with the extracted values
         return (correct_diagnosis_present, position)
     else:

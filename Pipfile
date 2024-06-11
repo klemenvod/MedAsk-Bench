@@ -12,6 +12,7 @@ transformers = "*"
 black = "*"
 anthropic = "*"
 google-generativeai = "*"
+tqdm = "*"
 
 [dev-packages]
 
