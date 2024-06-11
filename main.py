@@ -1,5 +1,5 @@
 import argparse
-import csv
+import json
 import os
 from tqdm import tqdm
 from config import MAX_INFERENCES, AGENTCLINIC_VIGNETTES, AVEY_VIGNETTES
@@ -7,6 +7,7 @@ from scenario import ScenarioLoader
 from patient import PatientAgent
 from doctor import DoctorAgent
 from evaluator import compare_results
+from util import calculate_word_counts
 
 
 def main(
@@ -16,20 +17,16 @@ def main(
     scenarios = (
         scenario_loader.scenarios if run_experiment else [scenario_loader.scenarios[0]]
     )
-    scenario_length = len(scenario_loader.scenarios)
 
     if run_experiment:
         os.makedirs("experiments", exist_ok=True)
 
     for experiment_idx in range(1, num_experiments + 1):
         if run_experiment:
-            csv_file = open(
-                f"experiments/{args.doctor_llm}_experiment_{experiment_idx}.csv",
+            jsonl_file = open(
+                f"experiments/{args.doctor_llm}_experiment_{experiment_idx}.jsonl",
                 "w",
-                newline="",
             )
-            csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(["Scenario", "Correctness", "Position"])
 
         for idx, scenario in tqdm(
             enumerate(scenarios, start=1),
@@ -71,7 +68,22 @@ def main(
                             f"in position {position}.",
                         )
                     else:
-                        csv_writer.writerow([idx, correct_diagnosis_present, position])
+                        words_total, words_per_turn_doc, words_per_turn_patient = (
+                            calculate_word_counts(doctor_dialogue)
+                        )
+                        data = {
+                            "correct_dx": scenario.diagnosis_information(),
+                            "vignette_source": args.file_path,
+                            "diff_dx": doctor_reply,
+                            "is_correct_dx_present": correct_diagnosis_present,
+                            "dx_position": position,
+                            "num_turns": doctor_agent.infs,
+                            "words_total": words_total,
+                            "words_per_turn_doc": words_per_turn_doc,
+                            "words_per_turn_patient": words_per_turn_patient,
+                            "whole_dialogue": doctor_dialogue,
+                        }
+                        jsonl_file.write(json.dumps(data) + "\n")
                     break
 
                 if doctor_agent.infs >= doctor_agent.MAX_INFS:
@@ -79,7 +91,22 @@ def main(
                         print("Maximum inferences reached. Diagnosis not completed.")
 
                     else:
-                        csv_writer.writerow([idx, "INCOMPLETE", "-"])
+                        words_total, words_per_turn_doc, words_per_turn_patient = (
+                            calculate_word_counts(doctor_dialogue)
+                        )
+                        data = {
+                            "correct_dx": scenario.diagnosis_information(),
+                            "vignette_source": args.file_path,
+                            "diff_dx": doctor_reply,
+                            "is_correct_dx_present": "Maximum inferences reached",
+                            "dx_position": "",
+                            "num_turns": doctor_agent.infs,
+                            "words_total": words_total,
+                            "words_per_turn_doc": words_per_turn_doc,
+                            "words_per_turn_patient": words_per_turn_patient,
+                            "whole_dialogue": doctor_dialogue,
+                        }
+                        jsonl_file.write(json.dumps(data) + "\n")
                     break
 
                 patient_reply = patient_agent.inference_patient(doctor_dialogue)
@@ -87,16 +114,16 @@ def main(
                     print("Patient:", patient_reply)
                 doctor_dialogue += f"Patient: {patient_reply}\n"
                 tqdm.write(
-                    f"Experiment {experiment_idx} - Scenario {idx}/{scenario_length}: Dialogue turns: {doctor_agent.infs}/{doctor_agent.MAX_INFS}"
+                    f"Experiment {experiment_idx} - Scenario {idx}: Dialogue turns: {doctor_agent.infs}/{doctor_agent.MAX_INFS}"
                 )
 
         if run_experiment:
-            csv_file.close()
+            jsonl_file.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Symptom Assessment Simulation")
-    parser.add_argument("--doctor_llm", type=str, default="gpt4o")
+    parser.add_argument("--doctor_llm", type=str, default="gemini")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--evaluator_llm", type=str, default="gpt4")
     parser.add_argument(
