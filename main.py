@@ -36,19 +36,19 @@ def main(
             patient_agent = PatientAgent(scenario, patient_llm)
             doctor_agent = DoctorAgent(scenario, doctor_llm, MAX_INFERENCES)
 
-            doctor_dialogue = ""
+            diagnosis_dialogue = ""
 
             patient_reply = patient_agent.start_conversation()
             if not run_experiment:
                 print("Patient:", patient_reply)
 
-            doctor_dialogue = f"Patient: {patient_reply}\n"
+            diagnosis_dialogue = f"Patient: {patient_reply}\n"
 
             while True:
-                doctor_reply = doctor_agent.inference_doctor(doctor_dialogue)
+                doctor_reply = doctor_agent.inference_doctor(diagnosis_dialogue)
                 if not run_experiment:
                     print("Doctor:", doctor_reply)
-                doctor_dialogue += f"Doctor: {doctor_reply}\n"
+                diagnosis_dialogue += f"Doctor: {doctor_reply}\n"
 
                 if "DIAGNOSIS READY" in doctor_reply:
                     correct_diagnosis_present, position = compare_results(
@@ -69,7 +69,7 @@ def main(
                         )
                     else:
                         words_total, words_per_turn_doc, words_per_turn_patient = (
-                            calculate_word_counts(doctor_dialogue)
+                            calculate_word_counts(diagnosis_dialogue)
                         )
                         data = {
                             "correct_dx": scenario.diagnosis_information(),
@@ -81,7 +81,7 @@ def main(
                             "words_total": words_total,
                             "words_per_turn_doc": words_per_turn_doc,
                             "words_per_turn_patient": words_per_turn_patient,
-                            "whole_dialogue": doctor_dialogue,
+                            "whole_dialogue": diagnosis_dialogue,
                         }
                         jsonl_file.write(json.dumps(data) + "\n")
                     break
@@ -92,7 +92,7 @@ def main(
 
                     else:
                         words_total, words_per_turn_doc, words_per_turn_patient = (
-                            calculate_word_counts(doctor_dialogue)
+                            calculate_word_counts(diagnosis_dialogue)
                         )
                         data = {
                             "correct_dx": scenario.diagnosis_information(),
@@ -104,18 +104,19 @@ def main(
                             "words_total": words_total,
                             "words_per_turn_doc": words_per_turn_doc,
                             "words_per_turn_patient": words_per_turn_patient,
-                            "whole_dialogue": doctor_dialogue,
+                            "whole_dialogue": diagnosis_dialogue,
                         }
                         jsonl_file.write(json.dumps(data) + "\n")
                     break
 
-                patient_reply = patient_agent.inference_patient(doctor_dialogue)
+                patient_reply = patient_agent.inference_patient(diagnosis_dialogue)
                 if not run_experiment:
                     print("Patient:", patient_reply)
-                doctor_dialogue += f"Patient: {patient_reply}\n"
-                tqdm.write(
-                    f"Experiment {experiment_idx} - Scenario {idx}: Dialogue turns: {doctor_agent.infs}/{doctor_agent.MAX_INFS}"
-                )
+                else:
+                    tqdm.write(
+                        f"Experiment {experiment_idx} - Scenario {idx}: Dialogue turns: {doctor_agent.infs}/{doctor_agent.MAX_INFS}"
+                    )
+                diagnosis_dialogue += f"Patient: {patient_reply}\n"
 
         if run_experiment:
             jsonl_file.close()
@@ -123,7 +124,7 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Symptom Assessment Simulation")
-    parser.add_argument("--doctor_llm", type=str, default="gemini")
+    parser.add_argument("--doctor_llm", type=str, default="gpt3.5")
     parser.add_argument("--patient_llm", type=str, default="gpt4")
     parser.add_argument("--evaluator_llm", type=str, default="gpt4")
     parser.add_argument(

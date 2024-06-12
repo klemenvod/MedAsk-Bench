@@ -1,0 +1,22 @@
+OPENAI_API_KEY = "your_openai_api_key_here"
+ANTHROPIC_API_KEY = "your_anthropic_api_key_here"
+GOOGLE_API_KEY = "your_google_api_key_here"
+
+MAX_INFERENCES = 20
+
+AGENTCLINIC_VIGNETTES = "vignettes/agentclinic_vignettes.jsonl"
+AVEY_VIGNETTES = "vignettes/avey_vignettes.jsonl"
+
+LLAMA_URL = "meta/meta-llama-3-70b-instruct"
+MIXTRAL_URL = "mistralai/mixtral-8x7b-instruct-v0.1"
+
+GPT_TEMPERATURE = 0.05
+
+CLAUDE_TEMPERATURE = 0.05
+CLAUDE_MAX_TOKENS = 100
+
+GEMINI_TEMPERATURE = 0.05
+GEMINI_MAX_TOKENS = 100
+
+LLAMA_MAX_TOKENS = 100
+MIXTRAL_MAX_TOKENS = 100
